@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Turbo Lane — 3D Car Racer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%8F%8E%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 3D canvas gets appended here by main.js -->
+  <div id="game-container"></div>
+
+  <!-- HUD (visible while playing) -->
+  <div id="hud" class="hidden">
+    <div class="hud-top-left">
+      <div class="hud-label">SCORE</div>
+      <div id="score" class="hud-value">0</div>
+      <div class="hud-label small">BEST <span id="best">0</span></div>
+    </div>
+    <div class="hud-top-right">
+      <div id="speed" class="hud-value">0</div>
+      <div class="hud-label">KM/H</div>
+    </div>
+  </div>
+
+  <!-- Start menu -->
+  <div id="menu" class="overlay">
+    <h1 class="title">TURBO<span>LANE</span></h1>
+    <p class="subtitle">Dodge the traffic. Don't crash.</p>
+    <div class="controls-hint">
+      <p>&#8592; &#8594; / A D &mdash; steer</p>
+      <p>&#8593; &#8595; / W S &mdash; speed / brake</p>
+      <p>or swipe on touch screens</p>
+    </div>
+    <button id="start-btn" class="big-btn">START &nbsp;&#9654;</button>
+    <p class="enter-hint">press ENTER</p>
+  </div>
+
+  <!-- Game over screen -->
+  <div id="gameover" class="overlay hidden">
+    <h1 class="title crash">CRASHED!</h1>
+    <p class="score-line">SCORE <span id="final-score">0</span></p>
+    <p class="score-line best-line">BEST &nbsp;<span id="final-best">0</span></p>
+    <p id="new-best" class="new-best hidden">&#9733; NEW BEST! &#9733;</p>
+    <button id="restart-btn" class="big-btn">RETRY &nbsp;&#8635;</button>
+    <p class="enter-hint">press ENTER</p>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
