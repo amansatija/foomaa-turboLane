@@ -61,9 +61,35 @@ function buildCar(bodyColor, { isPlayer = false } = {}) {
   return { group: car, wheels };
 }
 
+// ---------- nitro exhaust flames (player only) ----------
+function makeFlames() {
+  const group = new THREE.Group();
+  const flameMat = new THREE.MeshBasicMaterial({
+    color: 0x40c4ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending,
+  });
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending,
+  });
+  const flames = [];
+  for (const x of [-0.5, 0.5]) {
+    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.2, 8), flameMat);
+    outer.rotation.x = -Math.PI / 2;          // point backward (+z)
+    outer.position.set(x, 0.55, CAR_LENGTH / 2 + 0.5);
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.8, 8), coreMat);
+    core.rotation.x = -Math.PI / 2;
+    core.position.set(x, 0.55, CAR_LENGTH / 2 + 0.35);
+    group.add(outer, core);
+    flames.push({ outer, core });
+  }
+  group.visible = false;
+  return { group, flames };
+}
+
 // ---------- player ----------
 export function createPlayer(scene) {
   const { group, wheels } = buildCar(0x2196f3, { isPlayer: true });
+  const flameFx = makeFlames();
+  group.add(flameFx.group);
   const START_LANE = Math.floor(LANE_COUNT / 2);
   group.position.set(laneX(START_LANE), 0, 0);
   scene.add(group);
@@ -75,10 +101,16 @@ export function createPlayer(scene) {
     x: laneX(START_LANE),
     width: CAR_WIDTH,
     length: CAR_LENGTH,
+    nitro: false,
   };
 
   function steer(dir) { // dir: -1 left, +1 right
     state.targetLane = Math.min(LANE_COUNT - 1, Math.max(0, state.targetLane + dir));
+  }
+
+  function setNitro(on) {
+    state.nitro = !!on;
+    flameFx.group.visible = state.nitro;
   }
 
   function update(dt) {
@@ -93,9 +125,20 @@ export function createPlayer(scene) {
 
     // spin wheels proportional to speed set by main loop
     for (const w of wheels) w.rotation.x -= (state.wheelSpeed || 0) * dt;
+
+    // animate nitro flames (flicker + length pulse)
+    if (state.nitro) {
+      const t = performance.now() * 0.02;
+      for (const f of flameFx.flames) {
+        const flick = 0.7 + Math.random() * 0.6;
+        f.outer.scale.set(0.8 + Math.random() * 0.3, flick, 0.8 + Math.random() * 0.3);
+        f.core.scale.set(1, flick * 0.9, 1);
+        f.outer.material.opacity = 0.6 + Math.random() * 0.3;
+      }
+    }
   }
 
-  return { group, state, steer, update };
+  return { group, state, steer, update, setNitro };
 }
 
 // ---------- traffic ----------

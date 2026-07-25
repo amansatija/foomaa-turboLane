@@ -8,13 +8,23 @@ import { createAudio } from './audio.js';
 
 // ---------- tuning ----------
 const SPEED_START = 18;        // world units/s  (~65 km/h shown)
-const SPEED_MAX = 55;          //                (~200 km/h shown)
-const SPEED_RAMP = 0.35;       // passive speed gain per second
-const ACCEL_BOOST = 14;        // extra speed/s while holding up
-const BRAKE_POWER = 26;        // speed loss/s while holding down
+const SPEED_MAX = 111;         //                (~400 km/h shown)
+const NITRO_MAX = 139;         //                (~500 km/h shown, nitro on)
+const SPEED_RAMP = 0.6;        // passive speed gain per second
+const ACCEL_BOOST = 16;        // extra speed/s while holding up
+const BRAKE_POWER = 30;        // speed loss/s while holding down
 const SPAWN_Z = -260;          // where traffic appears (far ahead)
 const DESPAWN_Z = 25;          // behind the camera -> remove
 const KMH = 3.6;               // display conversion
+
+// nitro bar tuning
+const NITRO_DRAIN = 1 / 4;     // full -> empty in 4s of continuous use
+const NITRO_REGEN = 1 / 15;    // empty -> full in 15s
+const NITRO_MIN_USE = 0.12;    // must have this much charge to engage
+
+// difficulty tuning (rises with distance, never stops growing)
+const DIFFICULTY_PER_SCORE = 1 / 3000;   // +1.0 per 3000 points
+const DIFFICULTY_CAP = 2.5;              // soft cap applied to some effects
 
 // ---------- renderer / scene ----------
 const container = document.getElementById('game-container');
@@ -32,6 +42,8 @@ scene.fog = new THREE.Fog(0x87ceeb, 60, 240);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 400);
 camera.position.set(0, 4.2, 7.5);
 camera.lookAt(0, 1, -8);
+const FOV_BASE = 70;
+const FOV_NITRO = 86;
 
 // ---------- lights ----------
 const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x3a5f2a, 0.9);
@@ -63,6 +75,8 @@ const $ = (id) => document.getElementById(id);
 const hudEl = $('hud'), menuEl = $('menu'), gameoverEl = $('gameover');
 const scoreEl = $('score'), bestEl = $('best'), speedEl = $('speed');
 const finalScoreEl = $('final-score'), finalBestEl = $('final-best'), newBestEl = $('new-best');
+const nitroFillEl = $('nitro-fill'), nitroLabelEl = $('nitro-label');
+const nitroOverlayEl = $('nitro-overlay'), levelLabelEl = $('level-label');
 
 // ---------- game state ----------
 let mode = 'menu';            // 'menu' | 'playing' | 'gameover'
@@ -72,6 +86,8 @@ let best = Number(localStorage.getItem('turbolane_best') || 0);
 let traffic = [];
 let spawnTimer = 0;
 let crashShake = 0;
+let difficulty = 0;           // rises with score, drives traffic density
+const nitro = { amount: 1, active: false };
 
 bestEl.textContent = best;
 
@@ -82,6 +98,10 @@ function resetGame() {
   score = 0;
   spawnTimer = 0.8;
   crashShake = 0;
+  difficulty = 0;
+  nitro.amount = 1;
+  nitro.active = false;
+  player.setNitro(false);
   player.state.targetLane = Math.floor(LANE_COUNT / 2);
   player.state.lane = player.state.targetLane;
   player.state.x = laneX(player.state.lane);
@@ -103,6 +123,12 @@ function endGame() {
   mode = 'gameover';
   audio.crash();
   crashShake = 1;
+  player.setNitro(false);
+  nitro.active = false;
+  nitroOverlayEl.classList.add('hidden');
+  nitroOverlayEl.classList.remove('active');
+  camera.fov = FOV_BASE;
+  camera.updateProjectionMatrix();
   const finalScore = Math.floor(score);
   const isNewBest = finalScore > best;
   if (isNewBest) {
@@ -122,26 +148,39 @@ $('restart-btn').addEventListener('click', startGame);
 
 // ---------- traffic spawning ----------
 function spawnInterval() {
-  // denser traffic as speed rises
-  const t = (speed - SPEED_START) / (SPEED_MAX - SPEED_START);
-  return 1.5 - t * 1.0; // 1.5s -> 0.5s
+  // denser traffic as speed AND difficulty rise
+  const t = (speed - SPEED_START) / (NITRO_MAX - SPEED_START);
+  return Math.max(0.32, 1.5 - t * 0.6 - difficulty * 0.45);
 }
 
 function spawnTraffic() {
   const car = createTrafficCar(scene);
   car.lane = (Math.random() * LANE_COUNT) | 0;
-  // traffic drives "slower than player": relative closing speed = speed - car.speed
-  car.speed = 8 + Math.random() * 12;
+  // traffic drives slower than player; spread widens with difficulty
+  // higher difficulty => more slow "obstacle" cars that close faster
+  let base = 8 + Math.random() * 12;
+  const slowChance = 0.15 + Math.min(0.35, difficulty * 0.12);
+  if (Math.random() < slowChance) base = 3 + Math.random() * 6;
+  car.speed = base;
   car.group.position.set(laneX(car.lane), 0, SPAWN_Z - Math.random() * 30);
 
   // don't spawn directly on top of an existing car in the same lane
   for (const t of traffic) {
     if (t.lane === car.lane && Math.abs(t.group.position.z - car.group.position.z) < 25) {
       scene.remove(car.group);
-      return;
+      return false;
     }
   }
   traffic.push(car);
+  return true;
+}
+
+// how many cars to try spawning in one beat (rises with difficulty)
+function spawnCount() {
+  let n = 1;
+  if (difficulty > 0.6 && Math.random() < (difficulty - 0.6) * 0.5) n++;
+  if (difficulty > 1.3 && Math.random() < (difficulty - 1.3) * 0.4) n++;
+  return n;
 }
 
 // ---------- per-frame update while playing ----------
@@ -151,22 +190,39 @@ function updatePlaying(dt) {
   if (keys.steerLeft) player.steer(-1);
   if (keys.steerRight) player.steer(1);
 
-  // speed model
+  // ---- nitro bar ----
+  const wantNitro = keys.nitro && nitro.amount > NITRO_MIN_USE;
+  nitro.active = wantNitro;
+  if (nitro.active) {
+    nitro.amount = Math.max(0, nitro.amount - NITRO_DRAIN * dt);
+    if (nitro.amount <= 0) nitro.active = false;
+  } else {
+    nitro.amount = Math.min(1, nitro.amount + NITRO_REGEN * dt);
+  }
+  player.setNitro(nitro.active);
+
+  // ---- speed model ----
+  const effectiveMax = nitro.active ? NITRO_MAX : SPEED_MAX;
   speed += SPEED_RAMP * dt;
   if (keys.accel) speed += ACCEL_BOOST * dt;
+  if (nitro.active) speed += ACCEL_BOOST * 2.0 * dt; // nitro kick
   if (keys.brake) speed -= BRAKE_POWER * dt;
-  speed = Math.max(6, Math.min(SPEED_MAX, speed));
+  speed = Math.max(6, Math.min(effectiveMax, speed));
+
+  // ---- difficulty ramps with distance ----
+  difficulty = Math.min(DIFFICULTY_CAP, score * DIFFICULTY_PER_SCORE);
 
   // world scroll + player animation
   road.update(speed, dt);
   player.state.wheelSpeed = speed * 1.5;
   player.update(dt);
 
-  // spawn traffic
+  // spawn traffic (count scales with difficulty)
   spawnTimer -= dt;
   if (spawnTimer <= 0) {
     spawnTimer = spawnInterval() * (0.7 + Math.random() * 0.6);
-    spawnTraffic();
+    const count = spawnCount();
+    for (let i = 0; i < count; i++) spawnTraffic();
   }
 
   // move traffic, check collisions & near-misses
@@ -200,15 +256,30 @@ function updatePlaying(dt) {
     }
   }
 
-  // scoring: distance
+  // scoring: distance (+ small nitro risk bonus)
   score += speed * dt;
+  if (nitro.active) score += speed * dt * 0.5;
 
   // audio + HUD
-  audio.setEngineSpeed((speed - SPEED_START) / (SPEED_MAX - SPEED_START));
+  audio.setEngineSpeed((speed - SPEED_START) / (NITRO_MAX - SPEED_START));
   scoreEl.textContent = Math.floor(score);
   speedEl.textContent = Math.round(speed * KMH);
+  levelLabelEl.textContent = 'LV ' + (1 + Math.floor(difficulty * 2));
 
-  // camera: subtle sway with lane position
+  // nitro HUD + overlay
+  nitroFillEl.style.transform = `scaleX(${nitro.amount})`;
+  nitroFillEl.classList.toggle('active', nitro.active);
+  nitroFillEl.classList.toggle('empty', nitro.amount <= 0.001);
+  nitroLabelEl.classList.toggle('active', nitro.active);
+  nitroLabelEl.classList.toggle('ready', !nitro.active && nitro.amount >= 0.999);
+  nitroLabelEl.classList.toggle('empty', nitro.amount < NITRO_MIN_USE && !nitro.active);
+  nitroOverlayEl.classList.toggle('active', nitro.active);
+  nitroOverlayEl.classList.toggle('hidden', !nitro.active);
+
+  // camera: fov kicks in with nitro + subtle sway with lane position
+  const targetFov = nitro.active ? FOV_NITRO : FOV_BASE;
+  camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 6);
+  camera.updateProjectionMatrix();
   camera.position.x += (p.x * 0.35 - camera.position.x) * Math.min(1, dt * 4);
   camera.lookAt(p.x * 0.5, 1, -8);
 }
