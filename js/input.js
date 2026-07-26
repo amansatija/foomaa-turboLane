@@ -68,18 +68,39 @@ export function createInput() {
     jumpBtn.addEventListener('mousedown', press);
   }
 
+  // ----- on-screen pause button (one-shot; mobile has no P/ESC) -----
+  const pauseBtn = document.getElementById('pause-btn');
+  if (pauseBtn) {
+    const press = (e) => { e.preventDefault(); state.pause = true; };
+    pauseBtn.addEventListener('touchstart', press, { passive: false });
+    pauseBtn.addEventListener('mousedown', press);
+  }
+
   // ----- touch: swipe to steer, hold top/bottom half for speed/brake, tap = confirm -----
   let touchStart = null;
-  const onHudBtn = (el) => el && el.closest && (el.closest('#nitro-btn') || el.closest('#jump-btn'));
+  // Any real UI control must not also generate steer/jump/confirm. Classic bug:
+  // tap "Quit to menu" → click sets mode=menu, same touch also sets confirm →
+  // next frame startGame() restarts. Same for env picker / resume / etc.
+  const onUiEl = (el) => el && el.closest && !!el.closest(
+    'button, a, input, select, textarea, label, .overlay, #env-picker'
+  );
 
   window.addEventListener('touchstart', (e) => {
-    if (onHudBtn(e.target)) return;            // on-screen buttons own their touches
+    if (onUiEl(e.target)) {
+      touchStart = null;
+      return;
+    }
     const t = e.changedTouches[0];
     touchStart = { x: t.clientX, y: t.clientY, time: performance.now() };
   }, { passive: true });
 
   window.addEventListener('touchend', (e) => {
-    if (onHudBtn(e.target)) return;
+    if (onUiEl(e.target)) {
+      touchStart = null;
+      state.accel = false;
+      state.brake = false;
+      return;
+    }
     if (!touchStart) return;
     const t = e.changedTouches[0];
     const dx = t.clientX - touchStart.x;
@@ -99,7 +120,7 @@ export function createInput() {
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
-    if (onHudBtn(e.target)) return;
+    if (onUiEl(e.target) || !touchStart) return;
     // holding a finger in the top/bottom quarter of the screen = accel / brake
     const t = e.changedTouches[0];
     const h = window.innerHeight;

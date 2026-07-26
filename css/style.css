@@ -129,6 +129,39 @@ html, body {
   to   { filter: brightness(1.6); }
 }
 
+/* on-screen pause button (hidden on desktop, shown via media query) */
+.pause-btn {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: 1;
+  color: #e8f4ff;
+  background: rgba(8, 16, 28, 0.72);
+  border: 2px solid rgba(77, 208, 255, 0.55);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  z-index: 6;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pause-btn:active {
+  transform: translateX(-50%) scale(0.94);
+  background: rgba(21, 101, 192, 0.85);
+  border-color: #4dd0ff;
+}
+
 /* on-screen nitro button (hidden on desktop, shown via media query) */
 .nitro-btn {
   position: absolute;
@@ -373,9 +406,10 @@ html, body {
   margin-top: 6px;
 }
 
-/* show nitro + jump buttons only on touch / small screens */
+/* show nitro + jump + pause buttons only on touch / small screens */
 @media (hover: none) and (pointer: coarse), (max-width: 720px) {
   .nitro-btn { display: flex; }
   .jump-btn { display: flex; }
+  .pause-btn { display: flex; }
   .nitro-label .key-hint { display: none; }
 }

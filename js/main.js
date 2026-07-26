@@ -124,7 +124,7 @@ let nextEnv = null;
 let envTimer = 0;
 let envTween = -1;            // -1 = idle, 0..1 = in progress
 let envFrom = null;           // snapshot of colors at tween start
-let selectedStartEnv = localStorage.getItem(ENV_LS_KEY) || 'highway';
+let selectedStartEnv = localStorage.getItem(ENV_LS_KEY) || 'surprise';
 
 bestEl.textContent = best;
 
@@ -236,9 +236,9 @@ function initEnvPicker() {
     }
   });
   if (!found) {
-    selectedStartEnv = 'highway';
+    selectedStartEnv = 'surprise';
     buttons.forEach((btn) => {
-      btn.classList.toggle('selected', btn.dataset.env === 'highway');
+      btn.classList.toggle('selected', btn.dataset.env === 'surprise');
     });
   }
 
