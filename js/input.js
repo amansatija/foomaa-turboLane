@@ -1,5 +1,7 @@
 // input.js — keyboard (arrows / WASD) + touch swipes, normalized into
-// discrete steer events and held accelerate/brake flags.
+// discrete steer/jump events and held accelerate/brake/nitro flags.
+// Touch (Temple Run style): swipe L/R = lane change, swipe up = jump,
+// swipe down = brake pulse. No "hold top of screen" accel.
 
 export function createInput() {
   const state = {
@@ -76,8 +78,16 @@ export function createInput() {
     pauseBtn.addEventListener('mousedown', press);
   }
 
-  // ----- touch: swipe to steer, hold top/bottom half for speed/brake, tap = confirm -----
+  // ----- touch: Temple Run-style swipes (L/R steer, up jump, down brake) -----
+  // Swipe up must NOT accel — that was the old "hold top of screen" speed control.
+  const SWIPE_MIN = 40;       // px before a swipe counts
+  const TAP_MAX = 12;         // px max movement for a tap
+  const TAP_MS = 250;
+  const BRAKE_PULSE_MS = 220; // swipe-down brake lasts long enough to feel
   let touchStart = null;
+  let gestureFired = false;   // one action per finger-down
+  let touchBrakeUntil = 0;    // performance.now() deadline for swipe-down brake
+
   // Any real UI control must not also generate steer/jump/confirm. Classic bug:
   // tap "Quit to menu" → click sets mode=menu, same touch also sets confirm →
   // next frame startGame() restarts. Same for env picker / resume / etc.
@@ -85,20 +95,47 @@ export function createInput() {
     'button, a, input, select, textarea, label, .overlay, #env-picker'
   );
 
+  function applySwipe(dx, dy) {
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    if (adx < SWIPE_MIN && ady < SWIPE_MIN) return false;
+    if (adx >= ady) {
+      // horizontal: lane change
+      if (dx < 0) state.steerLeft = true; else state.steerRight = true;
+    } else if (dy < 0) {
+      // swipe up → jump (Temple Run style)
+      state.jump = true;
+    } else {
+      // swipe down → timed brake pulse (separate from keyboard ↓/S hold)
+      touchBrakeUntil = performance.now() + BRAKE_PULSE_MS;
+    }
+    return true;
+  }
+
   window.addEventListener('touchstart', (e) => {
     if (onUiEl(e.target)) {
       touchStart = null;
+      gestureFired = false;
       return;
     }
     const t = e.changedTouches[0];
     touchStart = { x: t.clientX, y: t.clientY, time: performance.now() };
+    gestureFired = false;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (onUiEl(e.target) || !touchStart || gestureFired) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    // Fire as soon as the swipe is clear so jump feels immediate
+    if (applySwipe(dx, dy)) gestureFired = true;
   }, { passive: true });
 
   window.addEventListener('touchend', (e) => {
     if (onUiEl(e.target)) {
       touchStart = null;
-      state.accel = false;
-      state.brake = false;
+      gestureFired = false;
       return;
     }
     if (!touchStart) return;
@@ -107,35 +144,35 @@ export function createInput() {
     const dy = t.clientY - touchStart.y;
     const dtMs = performance.now() - touchStart.time;
 
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) state.steerLeft = true; else state.steerRight = true;
-    } else if (dtMs < 250 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
-      // quick tap = jump while playing, confirm on menus (main decides via mode)
-      state.jump = true;
-      state.confirm = true;
+    if (!gestureFired) {
+      if (applySwipe(dx, dy)) {
+        // swipe completed on lift
+      } else if (dtMs < TAP_MS && Math.abs(dx) < TAP_MAX && Math.abs(dy) < TAP_MAX) {
+        // quick tap = jump while playing, confirm on menus (main decides via mode)
+        state.jump = true;
+        state.confirm = true;
+      }
     }
-    state.accel = false;
-    state.brake = false;
+
     touchStart = null;
+    gestureFired = false;
   }, { passive: true });
 
-  window.addEventListener('touchmove', (e) => {
-    if (onUiEl(e.target) || !touchStart) return;
-    // holding a finger in the top/bottom quarter of the screen = accel / brake
-    const t = e.changedTouches[0];
-    const h = window.innerHeight;
-    state.accel = t.clientY < h * 0.3;
-    state.brake = t.clientY > h * 0.7;
+  window.addEventListener('touchcancel', () => {
+    touchStart = null;
+    gestureFired = false;
   }, { passive: true });
 
   // ----- API -----
   // Reads and clears the one-shot events; held flags stay live.
   function poll() {
+    const touchBrake = touchBrakeUntil > 0 && performance.now() < touchBrakeUntil;
+    if (touchBrakeUntil && !touchBrake) touchBrakeUntil = 0;
     const out = {
       steerLeft: state.steerLeft,
       steerRight: state.steerRight,
       accel: state.accel,
-      brake: state.brake,
+      brake: state.brake || touchBrake,
       nitro: state.nitro,
       jump: state.jump,
       confirm: state.confirm,

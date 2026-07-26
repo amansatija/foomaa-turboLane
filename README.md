@@ -43,8 +43,9 @@ themselves. Brand-new visitors always get the stamped URLs from HTML.
 | Action        | Keys                          | Touch                    |
 | ------------- | ----------------------------- | ------------------------ |
 | Steer         | ← / → or A / D                | swipe left / right       |
-| Speed up      | ↑ or W                        | hold top of screen       |
-| Brake         | ↓ or S                        | hold bottom of screen    |
+| Speed up      | ↑ or W                        | (auto; nitro for boost)  |
+| Brake         | ↓ or S                        | swipe down               |
+| Jump          | Space / JUMP btn              | swipe up / JUMP btn      |
 | Start / retry | Enter (or click the button)   | tap                      |
 
 - Your speed rises automatically — dodge the slower traffic.
