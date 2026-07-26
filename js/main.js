@@ -7,6 +7,10 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHazard } from './hazard.js';
 import { ENVIRONMENTS, randomEnv, resolveEnv } from './environment.js';
+import { startUpdateChecker } from './update-check.js';
+
+// Auto-reload when scripts/deploy.sh publishes a new version.json
+startUpdateChecker();
 
 // ---------- tuning ----------
 const SPEED_START = 18;        // world units/s  (~65 km/h shown)
