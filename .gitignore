@@ -25,6 +25,9 @@ node_modules/
 dist/
 build/
 
+# Written by scripts/deploy.sh (git SHA of live deploy)
+version.json
+
 # Environment files
 .env
 .env.local

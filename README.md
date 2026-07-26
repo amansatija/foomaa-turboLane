@@ -18,6 +18,26 @@ Then open **http://localhost:8000** in your browser.
 > Note: opening `index.html` directly via double-click won't work because
 > browsers block ES modules on `file://` — you need the tiny local server above.
 
+## Production deploy (this server)
+
+No npm build and no process manager. Nginx serves this folder as static files.
+
+```bash
+cd /var/www/html/foomaa-turboLane
+./scripts/deploy.sh releases/v1.1.0-bgEnvNJump   # or omit branch to stay on current
+```
+
+What that does:
+
+1. `git fetch` + `git pull` (optionally checkout the release branch)
+2. Stamps every JS import + `index.html` assets with `?v=<gitsha>` so browsers
+   cannot reuse an old module graph
+3. Writes `version.json` (not committed). Open tabs poll it every ~30s and
+   auto-reload when the SHA changes
+
+After the **first** visit that has the update checker, later deploys refresh
+themselves. Brand-new visitors always get the stamped URLs from HTML.
+
 ## How to play
 
 | Action        | Keys                          | Touch                    |
