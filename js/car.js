@@ -45,14 +45,16 @@ function buildCar(bodyColor, { isPlayer = false } = {}) {
     wheels.push(w);
   }
 
-  // headlights (front = -z) / taillights
+  // headlights (front = -z) / taillights — cosmetic boxes; player SpotLights toggle via setHeadlights
   const headGeo = new THREE.BoxGeometry(0.3, 0.12, 0.06);
   const headMat = new THREE.MeshBasicMaterial({ color: 0xfffde7 });
   const tailMat = new THREE.MeshBasicMaterial({ color: 0xff1744 });
+  const headLamps = [];
   for (const x of [-0.5, 0.5]) {
     const h = new THREE.Mesh(headGeo, headMat);
     h.position.set(x, 0.62, -CAR_LENGTH / 2 - 0.01);
     car.add(h);
+    headLamps.push(h);
     const t = new THREE.Mesh(headGeo, tailMat);
     t.position.set(x, 0.62, CAR_LENGTH / 2 + 0.01);
     car.add(t);
@@ -65,7 +67,61 @@ function buildCar(bodyColor, { isPlayer = false } = {}) {
     car.add(spoiler);
   }
 
-  return { group: car, wheels };
+  return { group: car, wheels, headMat, headLamps };
+}
+
+// Player headlights: one SpotLight (no shadow) + additive beam cones for readability
+const HEADLIGHT_INTENSITY = 28;
+const HEADLIGHT_DISTANCE = 60;
+const HEADLIGHT_ANGLE = 0.52;
+const HEADLIGHT_PENUMBRA = 0.45;
+const HEADLIGHT_ON_COLOR = 0xfff8e1;
+const HEADLIGHT_OFF_COLOR = 0x4a4a40;
+
+function makeHeadlights(carGroup) {
+  const root = new THREE.Group();
+  root.name = 'headlights';
+
+  // Functional beam — lights asphalt / hazards / traffic ahead (MeshStandardMaterial)
+  const light = new THREE.SpotLight(
+    0xfff2cc,
+    0, // start off; setHeadlights enables
+    HEADLIGHT_DISTANCE,
+    HEADLIGHT_ANGLE,
+    HEADLIGHT_PENUMBRA,
+    1.8
+  );
+  light.position.set(0, 0.7, -CAR_LENGTH / 2 + 0.1);
+  light.castShadow = false;
+  // Target ahead on the road so the cone points forward (−z), slightly down
+  const target = new THREE.Object3D();
+  target.position.set(0, 0.15, -45);
+  root.add(light);
+  root.add(target);
+  light.target = target;
+
+  // Soft additive cones (visual only) — same cheap style as nitro flames
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0xfff2cc,
+    transparent: true,
+    opacity: 0.18,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const beams = [];
+  for (const x of [-0.35, 0.35]) {
+    const beam = new THREE.Mesh(new THREE.ConeGeometry(0.55, 18, 12, 1, true), beamMat);
+    // Cone default points +Y; -X rot aims apex toward −z (road ahead)
+    beam.rotation.x = -Math.PI / 2;
+    beam.position.set(x, 0.55, -CAR_LENGTH / 2 - 8.5);
+    beam.visible = false;
+    root.add(beam);
+    beams.push(beam);
+  }
+
+  carGroup.add(root);
+  return { root, light, target, beams, beamMat };
 }
 
 // ---------- nitro exhaust flames (player only) ----------
@@ -109,9 +165,12 @@ function makeShadow() {
 
 // ---------- player ----------
 export function createPlayer(scene) {
-  const { group, wheels } = buildCar(0x2196f3, { isPlayer: true });
+  const { group, wheels, headMat } = buildCar(0x2196f3, { isPlayer: true });
   const flameFx = makeFlames();
   group.add(flameFx.group);
+  const headlightFx = makeHeadlights(group);
+  // Day default: dim cosmetic lamps until City (night) enables them
+  headMat.color.setHex(HEADLIGHT_OFF_COLOR);
   const shadow = makeShadow();
   scene.add(shadow);
 
@@ -127,6 +186,7 @@ export function createPlayer(scene) {
     width: CAR_WIDTH,
     length: CAR_LENGTH,
     nitro: false,
+    headlights: false,
     jumping: false,
     jumpT: 0,
     jumpY: 0,
@@ -142,6 +202,19 @@ export function createPlayer(scene) {
   function setNitro(on) {
     state.nitro = !!on;
     flameFx.group.visible = state.nitro;
+  }
+
+  /** Auto-toggled by main.js when env.isNight (City). intensity 0..1 fades during env tween. */
+  function setHeadlights(on, intensity = 1) {
+    const enabled = !!on;
+    const level = enabled ? Math.min(1, Math.max(0, intensity)) : 0;
+    state.headlights = enabled && level > 0.02;
+    headlightFx.light.intensity = HEADLIGHT_INTENSITY * level;
+    headMat.color.setHex(state.headlights ? HEADLIGHT_ON_COLOR : HEADLIGHT_OFF_COLOR);
+    for (const beam of headlightFx.beams) {
+      beam.visible = state.headlights;
+      headlightFx.beamMat.opacity = 0.08 + 0.14 * level;
+    }
   }
 
   function jump() {
@@ -232,7 +305,7 @@ export function createPlayer(scene) {
     }
   }
 
-  return { group, state, steer, update, setNitro, jump, resetJump };
+  return { group, state, steer, update, setNitro, setHeadlights, jump, resetJump };
 }
 
 // ---------- traffic ----------

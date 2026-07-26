@@ -17,6 +17,7 @@ export const ENVIRONMENTS = {
     hemiSky: 0xbfe3ff,
     hemiGround: 0x3a5f2a,
     hemiIntensity: 0.9,
+    isNight: false,
     scenery: { trees: true, palms: false, cacti: false, rocks: false, buildings: false, poles: true },
   },
   beach: {
@@ -34,6 +35,7 @@ export const ENVIRONMENTS = {
     hemiSky: 0xd6f0ff,
     hemiGround: 0xd9c98a,
     hemiIntensity: 0.9,
+    isNight: false,
     scenery: { trees: false, palms: true, cacti: false, rocks: true, buildings: false, poles: true },
   },
   desert: {
@@ -51,8 +53,10 @@ export const ENVIRONMENTS = {
     hemiSky: 0xffcc80,
     hemiGround: 0x8d6e63,
     hemiIntensity: 0.85,
+    isNight: false,
     scenery: { trees: false, palms: false, cacti: true, rocks: true, buildings: false, poles: false },
   },
+  // City = night-like dark biome; player headlights auto-enable via isNight
   city: {
     id: 'city',
     name: 'CITY',
@@ -68,6 +72,7 @@ export const ENVIRONMENTS = {
     hemiSky: 0x5c6bc0,
     hemiGround: 0x37474f,
     hemiIntensity: 0.7,
+    isNight: true,
     scenery: { trees: false, palms: false, cacti: false, rocks: false, buildings: true, poles: true },
   },
 };

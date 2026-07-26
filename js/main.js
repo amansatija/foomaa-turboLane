@@ -147,6 +147,7 @@ function snapshotEnvColors() {
     sunPos: sun.position.clone(),
     fogNear: scene.fog.near,
     fogFar: scene.fog.far,
+    isNight: !!currentEnv.isNight,
   };
 }
 
@@ -169,6 +170,8 @@ function applyEnvImmediate(env) {
   hemi.intensity = env.hemiIntensity;
   road.setEnv(env);
   updateEnvLabel(env.name);
+  // City (isNight) auto headlights — functional SpotLight on player
+  player.setHeadlights(!!env.isNight);
 }
 
 function updateEnvLabel(name) {
@@ -211,6 +214,16 @@ function updateEnvTween(dt) {
     from.sunPos.z + (to.sunPos[2] - from.sunPos.z) * t
   );
 
+  // Fade headlights when crossing day <-> City (night)
+  const fromNight = !!from.isNight;
+  const toNight = !!to.isNight;
+  if (fromNight || toNight) {
+    const nightLevel = fromNight && toNight ? 1 : (fromNight ? 1 - t : t);
+    player.setHeadlights(nightLevel > 0.02, nightLevel);
+  } else {
+    player.setHeadlights(false);
+  }
+
   if (t >= 1) {
     currentEnv = nextEnv;
     nextEnv = null;
@@ -218,6 +231,7 @@ function updateEnvTween(dt) {
     envFrom = null;
     updateEnvLabel(currentEnv.name);
     envTimer = randomEnvTimer();
+    player.setHeadlights(!!currentEnv.isNight);
   }
 }
 
