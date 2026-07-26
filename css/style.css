@@ -134,19 +134,23 @@ html, body {
   position: absolute;
   bottom: 80px;
   right: 24px;
-  padding: 16px 22px;
-  font-size: 15px;
+  width: 78px;
+  height: 78px;
+  padding: 0;
+  display: none; /* flex when shown — centers label in the circle */
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  text-align: center;
   color: #081018;
   background: linear-gradient(180deg, #69f0ae, #00c853);
   border: none;
   border-radius: 50%;
-  width: 78px;
-  height: 78px;
   cursor: pointer;
   box-shadow: 0 4px 0 #2e7d32, 0 8px 18px rgba(0,0,0,0.5);
-  display: none;
   pointer-events: auto;
   z-index: 6;
   touch-action: none;
@@ -157,19 +161,23 @@ html, body {
   position: absolute;
   bottom: 80px;
   left: 24px;
-  padding: 16px 22px;
-  font-size: 15px;
+  width: 78px;
+  height: 78px;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  text-align: center;
   color: #081018;
   background: linear-gradient(180deg, #4dd0ff, #039be5);
   border: none;
   border-radius: 50%;
-  width: 78px;
-  height: 78px;
   cursor: pointer;
   box-shadow: 0 4px 0 #1565c0, 0 8px 18px rgba(0,0,0,0.5);
-  display: none;
   pointer-events: auto;
   z-index: 6;
   touch-action: none;
@@ -177,6 +185,10 @@ html, body {
 .jump-btn:active {
   transform: translateY(3px);
   box-shadow: 0 1px 0 #1565c0;
+}
+.nitro-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #2e7d32;
 }
 
 /* ---- level toast ---- */
@@ -363,7 +375,7 @@ html, body {
 
 /* show nitro + jump buttons only on touch / small screens */
 @media (hover: none) and (pointer: coarse), (max-width: 720px) {
-  .nitro-btn { display: block; }
-  .jump-btn { display: block; }
+  .nitro-btn { display: flex; }
+  .jump-btn { display: flex; }
   .nitro-label .key-hint { display: none; }
 }
