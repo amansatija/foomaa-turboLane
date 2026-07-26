@@ -8,8 +8,8 @@ import { createAudio } from './audio.js';
 
 // ---------- tuning ----------
 const SPEED_START = 18;        // world units/s  (~65 km/h shown)
-const SPEED_MAX = 111;         //                (~400 km/h shown)
-const NITRO_MAX = 139;         //                (~500 km/h shown, nitro on)
+const SPEED_MAX = 278;         //                (~1000 km/h shown)
+const NITRO_MAX = 347;         //                (~1250 km/h shown, nitro on)
 const SPEED_RAMP = 0.6;        // passive speed gain per second
 const ACCEL_BOOST = 16;        // extra speed/s while holding up
 const BRAKE_POWER = 30;        // speed loss/s while holding down
