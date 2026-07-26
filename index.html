@@ -22,6 +22,7 @@
       <div id="speed" class="hud-value">0</div>
       <div class="hud-label">KM/H</div>
       <div class="hud-label small" id="level-label">LV 1</div>
+      <div id="env-label">HIGHWAY</div>
     </div>
     <div class="hud-bottom-center">
       <div class="nitro-label" id="nitro-label">NITRO <span class="key-hint">SHIFT</span></div>
@@ -29,9 +30,13 @@
         <div id="nitro-fill" class="nitro-bar-fill"></div>
       </div>
     </div>
-    <!-- on-screen nitro button for touch -->
+    <!-- on-screen buttons for touch -->
+    <button id="jump-btn" class="jump-btn">JUMP</button>
     <button id="nitro-btn" class="nitro-btn">NITRO</button>
   </div>
+
+  <!-- level-up toast -->
+  <div id="level-toast" aria-hidden="true">LEVEL 2</div>
 
   <!-- nitro speed-line overlay -->
   <div id="nitro-overlay" class="nitro-overlay hidden"></div>
@@ -44,10 +49,33 @@
       <p>&#8592; &#8594; / A D &mdash; steer</p>
       <p>&#8593; &#8595; / W S &mdash; speed / brake</p>
       <p>SHIFT / N &mdash; nitro boost</p>
+      <p>SPACE / JUMP btn &mdash; jump</p>
+      <p>P / ESC &mdash; pause</p>
       <p>or swipe on touch screens</p>
+    </div>
+    <div class="env-picker" id="env-picker">
+      <div class="env-picker-label">START ENVIRONMENT</div>
+      <button type="button" class="env-btn selected" data-env="highway">Highway</button>
+      <button type="button" class="env-btn" data-env="beach">Beach</button>
+      <button type="button" class="env-btn" data-env="desert">Desert</button>
+      <button type="button" class="env-btn" data-env="city">City</button>
+      <button type="button" class="env-btn" data-env="surprise">&#127922; Surprise</button>
     </div>
     <button id="start-btn" class="big-btn">START &nbsp;&#9654;</button>
     <p class="enter-hint">press ENTER</p>
+  </div>
+
+  <!-- Pause overlay -->
+  <div id="pause" class="overlay hidden">
+    <h1 class="title pause">PAUSED</h1>
+    <div class="pause-info">
+      <div>LEVEL <span id="pause-level">1</span></div>
+      <div>ENV <span id="pause-env">HIGHWAY</span></div>
+    </div>
+    <div class="pause-btns">
+      <button id="resume-btn" class="big-btn">RESUME</button>
+      <button id="quit-btn" class="big-btn secondary">QUIT TO MENU</button>
+    </div>
   </div>
 
   <!-- Game over screen -->

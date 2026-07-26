@@ -8,7 +8,9 @@ export function createInput() {
     accel: false,        // held
     brake: false,        // held
     nitro: false,        // held
+    jump: false,         // one-shot (Space / JUMP btn)
     confirm: false,      // Enter / tap — one-shot
+    pause: false,        // one-shot (P / Escape)
   };
 
   // ----- keyboard -----
@@ -17,8 +19,10 @@ export function createInput() {
     ArrowRight: 'right', d: 'right', D: 'right',
     ArrowUp: 'up', w: 'up', W: 'up',
     ArrowDown: 'down', s: 'down', S: 'down',
-    Enter: 'confirm', ' ': 'confirm',
+    Enter: 'confirm',
+    ' ': 'jump',
     Shift: 'nitro', n: 'nitro', N: 'nitro',
+    p: 'pause', P: 'pause', Escape: 'pause',
   };
 
   window.addEventListener('keydown', (e) => {
@@ -30,7 +34,9 @@ export function createInput() {
     if (k === 'up') state.accel = true;
     if (k === 'down') state.brake = true;
     if (k === 'nitro') state.nitro = true;
+    if (k === 'jump' && !e.repeat) state.jump = true;
     if (k === 'confirm' && !e.repeat) state.confirm = true;
+    if (k === 'pause' && !e.repeat) state.pause = true;
   });
 
   window.addEventListener('keyup', (e) => {
@@ -54,18 +60,26 @@ export function createInput() {
     nitroBtn.addEventListener('mouseleave', release);
   }
 
+  // ----- on-screen jump button (one-shot press) -----
+  const jumpBtn = document.getElementById('jump-btn');
+  if (jumpBtn) {
+    const press = (e) => { e.preventDefault(); state.jump = true; };
+    jumpBtn.addEventListener('touchstart', press, { passive: false });
+    jumpBtn.addEventListener('mousedown', press);
+  }
+
   // ----- touch: swipe to steer, hold top/bottom half for speed/brake, tap = confirm -----
   let touchStart = null;
-  const onNitroBtn = (el) => el && el.closest && el.closest('#nitro-btn');
+  const onHudBtn = (el) => el && el.closest && (el.closest('#nitro-btn') || el.closest('#jump-btn'));
 
   window.addEventListener('touchstart', (e) => {
-    if (onNitroBtn(e.target)) return;            // nitro button owns its touches
+    if (onHudBtn(e.target)) return;            // on-screen buttons own their touches
     const t = e.changedTouches[0];
     touchStart = { x: t.clientX, y: t.clientY, time: performance.now() };
   }, { passive: true });
 
   window.addEventListener('touchend', (e) => {
-    if (onNitroBtn(e.target)) return;
+    if (onHudBtn(e.target)) return;
     if (!touchStart) return;
     const t = e.changedTouches[0];
     const dx = t.clientX - touchStart.x;
@@ -75,7 +89,9 @@ export function createInput() {
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
       if (dx < 0) state.steerLeft = true; else state.steerRight = true;
     } else if (dtMs < 250 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
-      state.confirm = true; // quick tap
+      // quick tap = jump while playing, confirm on menus (main decides via mode)
+      state.jump = true;
+      state.confirm = true;
     }
     state.accel = false;
     state.brake = false;
@@ -83,7 +99,7 @@ export function createInput() {
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
-    if (onNitroBtn(e.target)) return;
+    if (onHudBtn(e.target)) return;
     // holding a finger in the top/bottom quarter of the screen = accel / brake
     const t = e.changedTouches[0];
     const h = window.innerHeight;
@@ -100,9 +116,11 @@ export function createInput() {
       accel: state.accel,
       brake: state.brake,
       nitro: state.nitro,
+      jump: state.jump,
       confirm: state.confirm,
+      pause: state.pause,
     };
-    state.steerLeft = state.steerRight = state.confirm = false;
+    state.steerLeft = state.steerRight = state.confirm = state.jump = state.pause = false;
     return out;
   }
 

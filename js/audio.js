@@ -114,5 +114,78 @@ export function createAudio() {
     src.start();
   }
 
-  return { init, startEngine, stopEngine, setEngineSpeed, crash, whoosh };
+  // upward sine chirp on jump
+  function jump() {
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.18);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  }
+
+  // short low thud on land
+  function land() {
+    if (!ctx) return;
+    const dur = 0.12;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length) ** 1.5;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 280;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+
+    // soft sine thump
+    const thump = ctx.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(90, ctx.currentTime);
+    thump.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + dur);
+    const thumpGain = ctx.createGain();
+    thumpGain.gain.setValueAtTime(0.28, ctx.currentTime);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    thump.connect(thumpGain);
+    thumpGain.connect(ctx.destination);
+    thump.start();
+    thump.stop(ctx.currentTime + dur + 0.02);
+  }
+
+  // 3-note major arpeggio chime on level-up
+  function levelUp() {
+    if (!ctx) return;
+    const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
+    const step = 0.12;
+    notes.forEach((freq, i) => {
+      const t0 = ctx.currentTime + i * step;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t0);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, t0);
+      gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.3);
+    });
+  }
+
+  return { init, startEngine, stopEngine, setEngineSpeed, crash, whoosh, jump, land, levelUp };
 }

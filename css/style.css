@@ -46,6 +46,34 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* level label flash on level-up */
+#level-label.flash {
+  color: #ffd23f;
+  animation: level-flash 0.5s ease-out;
+}
+@keyframes level-flash {
+  0%   { transform: scale(1.4); opacity: 1; text-shadow: 0 0 18px rgba(255,210,63,0.9); }
+  100% { transform: scale(1);   opacity: 0.7; text-shadow: none; }
+}
+
+/* env badge under level */
+#env-label {
+  margin-top: 8px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  opacity: 0.75;
+  color: #4dd0ff;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+#env-label.swap {
+  animation: env-swap 0.6s ease;
+}
+@keyframes env-swap {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 0.75; transform: translateY(0); }
+}
+
 /* ---- Nitro bar ---- */
 .hud-bottom-center {
   position: absolute;
@@ -124,6 +152,55 @@ html, body {
   touch-action: none;
 }
 
+/* on-screen jump button — mirrors nitro, bottom-left, blue */
+.jump-btn {
+  position: absolute;
+  bottom: 80px;
+  left: 24px;
+  padding: 16px 22px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #081018;
+  background: linear-gradient(180deg, #4dd0ff, #039be5);
+  border: none;
+  border-radius: 50%;
+  width: 78px;
+  height: 78px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #1565c0, 0 8px 18px rgba(0,0,0,0.5);
+  display: none;
+  pointer-events: auto;
+  z-index: 6;
+  touch-action: none;
+}
+.jump-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #1565c0;
+}
+
+/* ---- level toast ---- */
+#level-toast {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 8;
+  pointer-events: none;
+  font-size: clamp(28px, 6vw, 48px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 6px;
+  color: #ffd23f;
+  text-shadow: 0 3px 0 #b8860b, 0 8px 28px rgba(0,0,0,0.7);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.35s ease;
+}
+#level-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ---- Nitro speed-line overlay ---- */
 .nitro-overlay {
   position: absolute;
@@ -148,7 +225,7 @@ html, body {
   to   { background-position: 0 0, 0 -60px; }
 }
 
-/* ---- Overlays (menu / game over) ---- */
+/* ---- Overlays (menu / game over / pause) ---- */
 .overlay {
   position: absolute;
   inset: 0;
@@ -173,6 +250,7 @@ html, body {
 }
 .title span { color: #4dd0ff; text-shadow: 0 4px 0 #1565c0, 0 8px 30px rgba(0,0,0,0.7); }
 .title.crash { color: #ff5252; text-shadow: 0 4px 0 #8e0000, 0 8px 30px rgba(0,0,0,0.7); }
+.title.pause { color: #4dd0ff; text-shadow: 0 4px 0 #1565c0, 0 8px 30px rgba(0,0,0,0.7); font-size: clamp(36px, 7vw, 64px); }
 
 .subtitle { font-size: 16px; opacity: 0.85; letter-spacing: 1px; }
 
@@ -183,6 +261,47 @@ html, body {
   opacity: 0.65;
   letter-spacing: 1px;
 }
+
+/* ---- env picker (menu) ---- */
+.env-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: min(480px, 92vw);
+  margin: 4px 0 2px;
+}
+.env-picker-label {
+  width: 100%;
+  font-size: 11px;
+  letter-spacing: 3px;
+  opacity: 0.55;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.env-btn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #e0e0e0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
+}
+.env-btn:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.35);
+}
+.env-btn.selected {
+  color: #081018;
+  background: linear-gradient(180deg, #4dd0ff, #039be5);
+  border-color: #4dd0ff;
+  box-shadow: 0 3px 0 #1565c0, 0 6px 14px rgba(0,0,0,0.4);
+}
+.env-btn:active { transform: translateY(2px); }
 
 .big-btn {
   margin-top: 8px;
@@ -200,6 +319,13 @@ html, body {
 }
 .big-btn:hover  { transform: translateY(-2px); }
 .big-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a97900; }
+.big-btn.secondary {
+  background: linear-gradient(180deg, #90a4ae, #607d8b);
+  box-shadow: 0 5px 0 #37474f, 0 10px 24px rgba(0,0,0,0.5);
+  font-size: 16px;
+  padding: 10px 32px;
+}
+.big-btn.secondary:active { box-shadow: 0 1px 0 #37474f; }
 
 .enter-hint { font-size: 12px; letter-spacing: 3px; opacity: 0.45; }
 
@@ -218,8 +344,26 @@ html, body {
   to   { transform: scale(1.12); opacity: 1; }
 }
 
-/* show nitro button only on touch / small screens */
+/* pause context lines */
+.pause-info {
+  font-size: 14px;
+  letter-spacing: 3px;
+  font-weight: 700;
+  opacity: 0.8;
+  line-height: 1.8;
+}
+.pause-info span { color: #ffd23f; }
+.pause-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+/* show nitro + jump buttons only on touch / small screens */
 @media (hover: none) and (pointer: coarse), (max-width: 720px) {
   .nitro-btn { display: block; }
+  .jump-btn { display: block; }
   .nitro-label .key-hint { display: none; }
 }

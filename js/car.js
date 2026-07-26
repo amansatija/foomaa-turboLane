@@ -5,6 +5,13 @@ import { laneX, LANE_COUNT } from './road.js';
 export const CAR_WIDTH = 1.6;
 export const CAR_LENGTH = 3.4;
 
+// jump tuning (exported for main.js collision guard)
+export const JUMP_DURATION = 0.7;
+export const JUMP_HEIGHT = 2.6;
+export const AIRBORNE_CLEAR_Y = 0.7;
+
+const LAND_SQUASH_DUR = 0.12; // seconds for land squash recover
+
 const TRAFFIC_COLORS = [0xe53935, 0x8e24aa, 0x3949ab, 0x00acc1, 0xfdd835, 0xf4511e, 0xc0ca33, 0x6d4c41];
 
 // Shared geometry/materials (cheap)
@@ -85,11 +92,29 @@ function makeFlames() {
   return { group, flames };
 }
 
+// ground shadow blob (parented to scene so it stays on the road while car rises)
+function makeShadow() {
+  const geo = new THREE.CircleGeometry(1.1, 24);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.02;
+  return mesh;
+}
+
 // ---------- player ----------
 export function createPlayer(scene) {
   const { group, wheels } = buildCar(0x2196f3, { isPlayer: true });
   const flameFx = makeFlames();
   group.add(flameFx.group);
+  const shadow = makeShadow();
+  scene.add(shadow);
+
   const START_LANE = Math.floor(LANE_COUNT / 2);
   group.position.set(laneX(START_LANE), 0, 0);
   scene.add(group);
@@ -102,6 +127,12 @@ export function createPlayer(scene) {
     width: CAR_WIDTH,
     length: CAR_LENGTH,
     nitro: false,
+    jumping: false,
+    jumpT: 0,
+    jumpY: 0,
+    grounded: true,
+    landFlash: 0,       // countdown for land squash (seconds remaining)
+    justLanded: false,  // one-frame flag for main/audio to play land sfx
   };
 
   function steer(dir) { // dir: -1 left, +1 right
@@ -111,6 +142,29 @@ export function createPlayer(scene) {
   function setNitro(on) {
     state.nitro = !!on;
     flameFx.group.visible = state.nitro;
+  }
+
+  function jump() {
+    if (!state.grounded) return false;
+    state.jumping = true;
+    state.jumpT = 0;
+    state.grounded = false;
+    state.justLanded = false;
+    return true;
+  }
+
+  function resetJump() {
+    state.jumping = false;
+    state.jumpT = 0;
+    state.jumpY = 0;
+    state.grounded = true;
+    state.landFlash = 0;
+    state.justLanded = false;
+    group.position.y = 0;
+    group.rotation.x = 0;
+    group.scale.set(1, 1, 1);
+    shadow.scale.set(1, 1, 1);
+    shadow.material.opacity = 0.35;
   }
 
   function update(dt) {
@@ -123,12 +177,52 @@ export function createPlayer(scene) {
     group.rotation.y = -dx * 0.08;           // slight yaw into the turn
     if (Math.abs(dx) < 0.05) state.lane = state.targetLane;
 
+    // ---- jump arc ----
+    state.justLanded = false;
+    if (state.jumping) {
+      state.jumpT += dt / JUMP_DURATION;
+      const t = Math.min(1, Math.max(0, state.jumpT));
+      // parabola peaking at t=0.5: 4*t*(1-t)
+      state.jumpY = JUMP_HEIGHT * 4 * t * (1 - t);
+      group.position.y = state.jumpY;
+      // nose up at apex
+      group.rotation.x = -Math.sin(t * Math.PI) * 0.12;
+
+      if (t >= 1) {
+        state.jumping = false;
+        state.grounded = true;
+        state.jumpY = 0;
+        state.jumpT = 0;
+        group.position.y = 0;
+        group.rotation.x = 0;
+        state.landFlash = LAND_SQUASH_DUR;
+        state.justLanded = true;
+      }
+    }
+
+    // land squash: scale.y 0.85 → 1 over LAND_SQUASH_DUR
+    if (state.landFlash > 0) {
+      state.landFlash = Math.max(0, state.landFlash - dt);
+      const u = 1 - state.landFlash / LAND_SQUASH_DUR; // 0 → 1
+      const sy = 0.85 + 0.15 * u;
+      group.scale.set(1, sy, 1);
+    } else {
+      group.scale.set(1, 1, 1);
+    }
+
+    // ground shadow follows x/z, shrinks/fades with height
+    shadow.position.x = state.x;
+    shadow.position.z = group.position.z;
+    const height01 = Math.min(1, state.jumpY / JUMP_HEIGHT);
+    const sScale = 1 - height01 * 0.45;
+    shadow.scale.set(sScale, sScale, sScale);
+    shadow.material.opacity = 0.35 * (1 - height01 * 0.55);
+
     // spin wheels proportional to speed set by main loop
     for (const w of wheels) w.rotation.x -= (state.wheelSpeed || 0) * dt;
 
     // animate nitro flames (flicker + length pulse)
     if (state.nitro) {
-      const t = performance.now() * 0.02;
       for (const f of flameFx.flames) {
         const flick = 0.7 + Math.random() * 0.6;
         f.outer.scale.set(0.8 + Math.random() * 0.3, flick, 0.8 + Math.random() * 0.3);
@@ -138,7 +232,7 @@ export function createPlayer(scene) {
     }
   }
 
-  return { group, state, steer, update, setNitro };
+  return { group, state, steer, update, setNitro, jump, resetJump };
 }
 
 // ---------- traffic ----------
