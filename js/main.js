@@ -360,6 +360,7 @@ function endGame() {
 function pauseGame() {
   if (mode !== 'playing') return;
   mode = 'paused';
+  audio.stopEngine(); // freeze engine drone while paused
   if (pauseLevelEl) pauseLevelEl.textContent = String(Math.min(level, LEVEL_DISPLAY_CAP));
   if (pauseEnvEl) pauseEnvEl.textContent = currentEnv.name;
   if (pauseEl) pauseEl.classList.remove('hidden');
@@ -368,6 +369,7 @@ function pauseGame() {
 function resumeGame() {
   if (mode !== 'paused') return;
   mode = 'playing';
+  audio.startEngine(); // pick engine back up
   if (pauseEl) pauseEl.classList.add('hidden');
 }
 

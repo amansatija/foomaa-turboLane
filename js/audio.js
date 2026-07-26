@@ -37,13 +37,19 @@ export function createAudio() {
   function startEngine() {
     if (!ctx || started) return;
     started = true;
-    engineGain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.5);
+    const t = ctx.currentTime;
+    engineGain.gain.cancelScheduledValues(t);
+    engineGain.gain.setValueAtTime(engineGain.gain.value, t);
+    engineGain.gain.linearRampToValueAtTime(0.05, t + 0.35);
   }
 
   function stopEngine() {
     if (!ctx || !started) return;
     started = false;
-    engineGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+    const t = ctx.currentTime;
+    engineGain.gain.cancelScheduledValues(t);
+    engineGain.gain.setValueAtTime(engineGain.gain.value, t);
+    engineGain.gain.linearRampToValueAtTime(0, t + 0.15);
   }
 
   // speed01: 0..1 normalized speed
